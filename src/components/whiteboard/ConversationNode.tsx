@@ -24,6 +24,7 @@ export const ConversationNode = ({
   searchQuery
 }: ConversationNodeProps) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [dragStartPosition, setDragStartPosition] = useState<{ x: number; y: number } | null>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
 
   const getNodeIcon = () => {
@@ -42,7 +43,8 @@ export const ConversationNode = ({
   };
 
   const getNodeClassName = () => {
-    const baseClasses = "absolute cursor-pointer transition-all duration-200 rounded-lg border-2 border-transparent overflow-hidden";
+    const baseClasses = "absolute transition-all duration-200 rounded-lg border-2 border-transparent overflow-hidden";
+    const cursorClass = isDragging ? "cursor-grabbing" : "cursor-grab";
     
     let typeClasses = "";
     switch (node.type) {
@@ -66,6 +68,7 @@ export const ConversationNode = ({
 
     return cn(
       baseClasses,
+      cursorClass,
       typeClasses,
       shapeClasses,
       isSelected && "ring-4 ring-primary ring-opacity-50",
@@ -73,23 +76,29 @@ export const ConversationNode = ({
     );
   };
 
-  const handlePanStart = () => {
+  const handleDragStart = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    event.stopPropagation();
     setIsDragging(true);
+    setDragStartPosition({ x: node.position.x, y: node.position.y });
   };
 
-  const handlePan = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    if (!isDragging) return;
+  const handleDrag = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    event.stopPropagation();
+    if (!isDragging || !dragStartPosition) return;
     
+    // Use delta instead of offset for precise 1:1 movement
     const newPosition = {
-      x: node.position.x + info.offset.x / zoom,
-      y: node.position.y + info.offset.y / zoom
+      x: dragStartPosition.x + info.offset.x / zoom,
+      y: dragStartPosition.y + info.offset.y / zoom
     };
     
     onMove(node.id, newPosition);
   };
 
-  const handlePanEnd = () => {
+  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    event.stopPropagation();
     setIsDragging(false);
+    setDragStartPosition(null);
   };
 
   const handleClick = (e: React.MouseEvent) => {
@@ -133,16 +142,23 @@ export const ConversationNode = ({
         height: node.size.height,
       }}
       drag
-      onPanStart={handlePanStart}
-      onPan={handlePan}
-      onPanEnd={handlePanEnd}
+      dragMomentum={false}
+      dragElastic={0}
+      dragTransition={{ 
+        power: 0,
+        timeConstant: 0
+      }}
+      onDragStart={handleDragStart}
+      onDrag={handleDrag}
+      onDragEnd={handleDragEnd}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={!isDragging ? { scale: 1.05 } : {}}
+      whileTap={!isDragging ? { scale: 0.95 } : {}}
       animate={{
-        scale: isDragging ? 1.1 : 1,
-        zIndex: isDragging ? 50 : 1
+        scale: isDragging ? 1.05 : 1,
+        zIndex: isDragging ? 50 : 1,
+        boxShadow: isDragging ? "0 20px 40px rgba(0,0,0,0.15)" : "0 4px 8px rgba(0,0,0,0.1)"
       }}
     >
       <div className={cn("p-3 h-full flex flex-col", contentClasses)}>

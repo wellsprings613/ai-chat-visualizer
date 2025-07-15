@@ -39,6 +39,7 @@ export const InteractiveCanvas = ({
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 1000, height: 800 });
   const [isPanning, setIsPanning] = useState(false);
+  const [isNodeBeingDragged, setIsNodeBeingDragged] = useState(false);
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 });
   
   // Handle canvas resize
@@ -84,16 +85,18 @@ export const InteractiveCanvas = ({
     }
   }, [viewport, onViewportChange]);
 
-  // Handle mouse pan
+  // Handle mouse pan - only when not dragging nodes
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 0) { // Left click
+    if (e.button === 0 && !isNodeBeingDragged && e.target === e.currentTarget) {
+      e.preventDefault();
       setIsPanning(true);
       setLastPanPoint({ x: e.clientX, y: e.clientY });
     }
   };
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isPanning) {
+    if (isPanning && !isNodeBeingDragged) {
+      e.preventDefault();
       const deltaX = e.clientX - lastPanPoint.x;
       const deltaY = e.clientY - lastPanPoint.y;
       
@@ -109,7 +112,7 @@ export const InteractiveCanvas = ({
       
       setLastPanPoint({ x: e.clientX, y: e.clientY });
     }
-  }, [isPanning, lastPanPoint, viewport, onViewportChange]);
+  }, [isPanning, isNodeBeingDragged, lastPanPoint, viewport, onViewportChange]);
 
   const handleMouseUp = useCallback(() => {
     setIsPanning(false);
@@ -144,10 +147,24 @@ export const InteractiveCanvas = ({
   }, [selectedNodes, onNodeSelect]);
 
   const handleCanvasClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
+    if (e.target === e.currentTarget && !isPanning) {
       onCanvasClick();
     }
   };
+
+  // Enhanced node move handler with drag state tracking
+  const handleNodeMove = useCallback((nodeId: string, position: Position) => {
+    onNodeMove(nodeId, position);
+  }, [onNodeMove]);
+
+  // Track node drag state to prevent canvas interactions
+  const handleNodeDragStart = useCallback(() => {
+    setIsNodeBeingDragged(true);
+  }, []);
+
+  const handleNodeDragEnd = useCallback(() => {
+    setIsNodeBeingDragged(false);
+  }, []);
 
   const handleViewportChange = (pan: Position) => {
     onViewportChange({
@@ -180,10 +197,15 @@ export const InteractiveCanvas = ({
   return (
     <div 
       ref={canvasRef}
-      className="flex-1 relative overflow-hidden bg-canvas-background canvas-grid cursor-grab active:cursor-grabbing"
+      className={cn(
+        "flex-1 relative overflow-hidden bg-canvas-background canvas-grid select-none",
+        isPanning ? "cursor-grabbing" : "cursor-grab",
+        isNodeBeingDragged && "cursor-default"
+      )}
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onClick={handleCanvasClick}
+      style={{ touchAction: 'none' }}
     >
       {/* Main canvas content */}
       <motion.div
@@ -223,7 +245,7 @@ export const InteractiveCanvas = ({
             node={node}
             isSelected={selectedNodes.includes(node.id)}
             onSelect={onNodeSelect}
-            onMove={onNodeMove}
+            onMove={handleNodeMove}
             onDoubleClick={onNodeEdit}
             zoom={viewport.zoom}
             searchQuery={searchQuery}
