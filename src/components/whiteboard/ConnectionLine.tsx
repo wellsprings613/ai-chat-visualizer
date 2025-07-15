@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { Connection, ConversationNode } from '@/types/whiteboard';
-import * as d3 from 'd3';
 
 interface ConnectionLineProps {
   connection: Connection;
@@ -9,49 +8,19 @@ interface ConnectionLineProps {
   opacity?: number;
 }
 
-export const ConnectionLine = ({ 
-  connection, 
-  nodes, 
-  isActive = false, 
-  opacity = 1 
+export const ConnectionLine = ({
+  connection,
+  nodes,
+  isActive = false,
+  opacity = 1
 }: ConnectionLineProps) => {
-  const pathData = useMemo(() => {
-    const fromNode = nodes.find(n => n.id === connection.from);
-    const toNode = nodes.find(n => n.id === connection.to);
-    
-    if (!fromNode || !toNode) return '';
-
-    // Calculate connection points from node centers
-    const fromCenter = {
-      x: fromNode.position.x + fromNode.size.width / 2,
-      y: fromNode.position.y + fromNode.size.height / 2
-    };
-    
-    const toCenter = {
-      x: toNode.position.x + toNode.size.width / 2,
-      y: toNode.position.y + toNode.size.height / 2
-    };
-
-    // Calculate edge points on node boundaries
-    const fromEdge = getEdgePoint(fromCenter, fromNode.size, toCenter);
-    const toEdge = getEdgePoint(toCenter, toNode.size, fromCenter);
-
-    // Create smooth curved path
-    const dx = toEdge.x - fromEdge.x;
-    const dy = toEdge.y - fromEdge.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    // Control points for smooth curve
-    const controlOffset = Math.min(distance * 0.4, 100);
-    const controlX1 = fromEdge.x + controlOffset;
-    const controlY1 = fromEdge.y;
-    const controlX2 = toEdge.x - controlOffset;
-    const controlY2 = toEdge.y;
-
-    return `M ${fromEdge.x} ${fromEdge.y} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${toEdge.x} ${toEdge.y}`;
-  }, [connection, nodes]);
-
-  const getEdgePoint = (center: { x: number; y: number }, size: { width: number; height: number }, target: { x: number; y: number }) => {
+  
+  // Move this function BEFORE useMemo to fix the hoisting error
+  const getEdgePoint = (
+    center: { x: number; y: number }, 
+    size: { width: number; height: number }, 
+    target: { x: number; y: number }
+  ) => {
     const dx = target.x - center.x;
     const dy = target.y - center.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
@@ -78,19 +47,58 @@ export const ConnectionLine = ({
     }
   };
 
+  const pathData = useMemo(() => {
+    const fromNode = nodes.find(n => n.id === connection.from);
+    const toNode = nodes.find(n => n.id === connection.to);
+    
+    if (!fromNode || !toNode) return '';
+    
+    // Calculate connection points from node centers
+    const fromCenter = {
+      x: fromNode.position.x + fromNode.size.width / 2,
+      y: fromNode.position.y + fromNode.size.height / 2
+    };
+    
+    const toCenter = {
+      x: toNode.position.x + toNode.size.width / 2,
+      y: toNode.position.y + toNode.size.height / 2
+    };
+    
+    // Calculate edge points on node boundaries
+    const fromEdge = getEdgePoint(fromCenter, fromNode.size, toCenter);
+    const toEdge = getEdgePoint(toCenter, toNode.size, fromCenter);
+    
+    // Create smooth curved path
+    const dx = toEdge.x - fromEdge.x;
+    const dy = toEdge.y - fromEdge.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Control points for smooth curve
+    const controlOffset = Math.min(distance * 0.4, 100);
+    const controlX1 = fromEdge.x + controlOffset;
+    const controlY1 = fromEdge.y;
+    const controlX2 = toEdge.x - controlOffset;
+    const controlY2 = toEdge.y;
+    
+    return `M ${fromEdge.x} ${fromEdge.y} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${toEdge.x} ${toEdge.y}`;
+  }, [connection, nodes, getEdgePoint]);
+  
   if (!pathData) return null;
-
+  
   return (
     <g>
       {/* Connection line */}
       <path
         d={pathData}
-        className={isActive ? "connection-active" : "connection-line"}
-        style={{ opacity }}
-        strokeDasharray={isActive ? "5,5" : "none"}
+        stroke={isActive ? "#3B82F6" : "#6B7280"}
+        strokeWidth="2"
+        fill="none"
+        opacity={opacity}
+        className="transition-all duration-200"
+        markerEnd={`url(#arrowhead-${connection.id})`}
       />
       
-      {/* Arrowhead */}
+      {/* Arrowhead marker definition */}
       <defs>
         <marker
           id={`arrowhead-${connection.id}`}
@@ -102,19 +110,11 @@ export const ConnectionLine = ({
         >
           <polygon
             points="0 0, 10 3.5, 0 7"
-            fill={isActive ? "hsl(var(--connection-active))" : "hsl(var(--connection-line))"}
+            fill={isActive ? "#3B82F6" : "#6B7280"}
             opacity={opacity}
           />
         </marker>
       </defs>
-      
-      <path
-        d={pathData}
-        className={isActive ? "connection-active" : "connection-line"}
-        style={{ opacity }}
-        fill="none"
-        markerEnd={`url(#arrowhead-${connection.id})`}
-      />
     </g>
   );
 };
