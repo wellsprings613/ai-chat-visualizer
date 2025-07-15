@@ -61,6 +61,22 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Whiteboard specific colors
+				canvas: {
+					background: 'hsl(var(--canvas-background))',
+					grid: 'hsl(var(--canvas-grid))'
+				},
+				node: {
+					user: 'hsl(var(--user-message))',
+					ai: 'hsl(var(--ai-response))',
+					code: 'hsl(var(--code-block))',
+					action: 'hsl(var(--action-item))',
+					topic: 'hsl(var(--topic-node))'
+				},
+				connection: {
+					line: 'hsl(var(--connection-line))',
+					active: 'hsl(var(--connection-active))'
 				}
 			},
 			borderRadius: {

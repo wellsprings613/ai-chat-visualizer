@@ -2,57 +2,71 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* AI Conversation Whiteboard Design System */
 
 @layer base {
   :root {
+    /* Canvas Background */
+    --canvas-background: 0 0% 98%;
+    --canvas-grid: 220 13% 91%;
+    
+    /* Conversation Node Colors */
+    --user-message: 217 91% 60%;     /* #3B82F6 - blue-500 */
+    --ai-response: 160 84% 39%;      /* #10B981 - emerald-500 */
+    --code-block: 258 90% 66%;       /* #8B5CF6 - violet-500 */
+    --action-item: 43 96% 56%;       /* #F59E0B - amber-500 */
+    --topic-node: 220 13% 18%;       /* #374151 - gray-700 */
+    
+    /* Connection Lines */
+    --connection-line: 215 16% 47%;   /* #6B7280 - gray-500 */
+    --connection-active: 217 91% 60%;  /* blue-500 for active connections */
+    
+    /* Interactive States */
+    --hover-glow: 217 91% 60%;       /* blue-500 for hover glow */
+    --selection-border: 217 91% 60%;  /* blue-500 for selection */
+    --selection-background: 217 91% 60% / 0.1; /* blue with transparency */
+    
+    /* Text Colors */
+    --text-primary: 220 13% 18%;     /* #1F2937 - gray-800 */
+    --text-secondary: 215 16% 47%;   /* #6B7280 - gray-500 */
+    --text-on-color: 0 0% 100%;      /* white for colored backgrounds */
+    
+    /* Shadows and Effects */
+    --shadow-node: 0 0% 0% / 0.1;
+    --shadow-hover: 0 0% 0% / 0.2;
+    --shadow-glow: 217 91% 60% / 0.3;
+    
+    /* Component Backgrounds */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
+    --foreground: 220 13% 18%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 220 13% 18%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
+    --popover-foreground: 220 13% 18%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 13% 91%;
+    --secondary-foreground: 220 13% 18%;
+    --muted: 220 13% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 220 13% 91%;
+    --accent-foreground: 220 13% 18%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 60%;
     --radius: 0.5rem;
-
+    
+    /* Sidebar */
     --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
+    --sidebar-foreground: 220 13% 18%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 13% 96%;
+    --sidebar-accent-foreground: 220 13% 18%;
     --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 217 91% 60%;
   }
 
   .dark {
@@ -101,5 +115,104 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* Canvas Grid Pattern */
+  .canvas-grid {
+    background-image: 
+      linear-gradient(hsl(var(--canvas-grid)) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--canvas-grid)) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  
+  /* Node Variants */
+  .node-user {
+    @apply bg-[hsl(var(--user-message))] text-[hsl(var(--text-on-color))] 
+           shadow-[0_4px_20px_hsl(var(--shadow-node))] 
+           hover:shadow-[0_8px_30px_hsl(var(--shadow-hover))]
+           hover:shadow-[0_0_20px_hsl(var(--shadow-glow))];
+  }
+  
+  .node-ai {
+    @apply bg-[hsl(var(--ai-response))] text-[hsl(var(--text-on-color))] 
+           shadow-[0_4px_20px_hsl(var(--shadow-node))] 
+           hover:shadow-[0_8px_30px_hsl(var(--shadow-hover))]
+           hover:shadow-[0_0_20px_hsl(var(--ai-response))/0.3];
+  }
+  
+  .node-code {
+    @apply bg-[hsl(var(--code-block))] text-[hsl(var(--text-on-color))] 
+           shadow-[0_4px_20px_hsl(var(--shadow-node))] 
+           hover:shadow-[0_8px_30px_hsl(var(--shadow-hover))]
+           hover:shadow-[0_0_20px_hsl(var(--code-block))/0.3]
+           font-mono;
+  }
+  
+  .node-action {
+    @apply bg-[hsl(var(--action-item))] text-[hsl(var(--text-on-color))] 
+           shadow-[0_4px_20px_hsl(var(--shadow-node))] 
+           hover:shadow-[0_8px_30px_hsl(var(--shadow-hover))]
+           hover:shadow-[0_0_20px_hsl(var(--action-item))/0.3];
+  }
+  
+  .node-topic {
+    @apply bg-[hsl(var(--topic-node))] text-[hsl(var(--text-on-color))] 
+           shadow-[0_4px_20px_hsl(var(--shadow-node))] 
+           hover:shadow-[0_8px_30px_hsl(var(--shadow-hover))]
+           hover:shadow-[0_0_20px_hsl(var(--topic-node))/0.3];
+  }
+  
+  /* Selection States */
+  .node-selected {
+    @apply ring-2 ring-[hsl(var(--selection-border))] 
+           bg-[hsl(var(--selection-background))];
+  }
+  
+  /* Canvas Controls */
+  .canvas-button {
+    @apply bg-background/80 backdrop-blur-sm border border-border 
+           hover:bg-accent hover:text-accent-foreground 
+           transition-all duration-200 shadow-sm;
+  }
+  
+  /* Mini-map */
+  .mini-map {
+    @apply bg-background/90 backdrop-blur-sm border border-border 
+           shadow-lg rounded-lg;
+  }
+  
+  /* Search highlighting */
+  .search-highlight {
+    @apply bg-yellow-300/60 rounded px-1;
+  }
+  
+  /* Smooth animations */
+  .smooth-transform {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .hover-scale {
+    @apply smooth-transform hover:scale-105;
+  }
+  
+  /* Connection line styles */
+  .connection-line {
+    stroke: hsl(var(--connection-line));
+    stroke-width: 2px;
+    fill: none;
+    filter: drop-shadow(0 2px 4px hsl(var(--shadow-node)));
+  }
+  
+  .connection-active {
+    stroke: hsl(var(--connection-active));
+    stroke-width: 3px;
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
   }
 }
