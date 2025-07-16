@@ -1,279 +1,173 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { ConversationNode } from './ConversationNode';
 import { ConnectionLine } from './ConnectionLine';
-import { MiniMap } from './MiniMap';
-import { 
-  ConversationNode as NodeType, 
-  ViewportState, 
-  Connection,
-  Position 
-} from '@/types/whiteboard';
-import { cn } from '@/lib/utils';
+import { WhiteboardData, ViewportState } from '@/types/whiteboard';
 
 interface InteractiveCanvasProps {
-  nodes: NodeType[];
-  connections: Connection[];
-  viewport: ViewportState;
-  selectedNodes: string[];
-  searchQuery: string;
-  onViewportChange: (viewport: ViewportState) => void;
-  onNodeSelect: (nodeId: string, multi: boolean) => void;
-  onNodeMove: (nodeId: string, position: Position) => void;
-  onNodeEdit: (nodeId: string) => void;
-  onCanvasClick: () => void;
+  data: WhiteboardData;
+  onNodeSelect?: (nodeId: string) => void;
+  selectedNodeId?: string;
 }
 
-export const InteractiveCanvas = ({
-  nodes,
-  connections,
-  viewport,
-  selectedNodes,
-  searchQuery,
-  onViewportChange,
-  onNodeSelect,
-  onNodeMove,
-  onNodeEdit,
-  onCanvasClick
-}: InteractiveCanvasProps) => {
+export const InteractiveCanvas = ({ data, onNodeSelect, selectedNodeId }: InteractiveCanvasProps) => {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 1000, height: 800 });
-  const [isPanning, setIsPanning] = useState(false);
-  const [isNodeBeingDragged, setIsNodeBeingDragged] = useState(false);
-  const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 });
-  
-  // Handle canvas resize
+  const [viewport, setViewport] = useState<ViewportState>({ x: 0, y: 0, zoom: 1 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  // Auto-layout nodes in a flowing conversation layout
   useEffect(() => {
-    const updateCanvasSize = () => {
-      if (canvasRef.current) {
-        const rect = canvasRef.current.getBoundingClientRect();
-        setCanvasSize({ width: rect.width, height: rect.height });
-      }
+    if (data.nodes.length === 0) return;
+
+    const layoutNodes = () => {
+      const nodeSpacing = 400; // Horizontal spacing between nodes
+      const verticalSpacing = 200; // Vertical spacing for alternating layout
+      
+      return data.nodes.map((node, index) => {
+        // Alternate between user (top) and assistant (bottom) positions
+        const isUser = node.data.sender === 'user';
+        const x = index * nodeSpacing + 100;
+        const y = isUser ? 100 : 350;
+        
+        return {
+          ...node,
+          position: { x, y }
+        };
+      });
     };
 
-    updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
-    return () => window.removeEventListener('resize', updateCanvasSize);
-  }, []);
+    // Update node positions
+    const updatedNodes = layoutNodes();
+    data.nodes = updatedNodes;
+  }, [data.nodes.length]);
 
-  // Handle wheel zoom
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(0.1, Math.min(3, viewport.zoom * delta));
-    
-    if (newZoom !== viewport.zoom) {
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (rect) {
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        
-        // Zoom towards mouse position
-        const zoomFactor = newZoom / viewport.zoom;
-        const newPan = {
-          x: mouseX - zoomFactor * (mouseX - viewport.pan.x),
-          y: mouseY - zoomFactor * (mouseY - viewport.pan.y)
-        };
-        
-        onViewportChange({
-          ...viewport,
-          zoom: newZoom,
-          pan: newPan
-        });
-      }
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - viewport.x, y: e.clientY - viewport.y });
     }
-  }, [viewport, onViewportChange]);
+  }, [viewport]);
 
-  // Handle mouse pan - only when not dragging nodes
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 0 && !isNodeBeingDragged && e.target === e.currentTarget) {
-      e.preventDefault();
-      setIsPanning(true);
-      setLastPanPoint({ x: e.clientX, y: e.clientY });
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (isDragging) {
+      setViewport(prev => ({
+        ...prev,
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      }));
     }
-  };
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isPanning && !isNodeBeingDragged) {
-      e.preventDefault();
-      const deltaX = e.clientX - lastPanPoint.x;
-      const deltaY = e.clientY - lastPanPoint.y;
-      
-      const newPan = {
-        x: viewport.pan.x + deltaX,
-        y: viewport.pan.y + deltaY
-      };
-      
-      onViewportChange({
-        ...viewport,
-        pan: newPan
-      });
-      
-      setLastPanPoint({ x: e.clientX, y: e.clientY });
-    }
-  }, [isPanning, isNodeBeingDragged, lastPanPoint, viewport, onViewportChange]);
+  }, [isDragging, dragStart]);
 
   const handleMouseUp = useCallback(() => {
-    setIsPanning(false);
+    setIsDragging(false);
   }, []);
 
-  // Add global mouse event listeners
-  useEffect(() => {
-    if (isPanning) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isPanning, handleMouseMove, handleMouseUp]);
-
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onNodeSelect('', false); // Clear selection
-      }
-      if (e.key === 'Delete' && selectedNodes.length > 0) {
-        // Handle delete nodes
-        console.log('Delete selected nodes:', selectedNodes);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNodes, onNodeSelect]);
-
-  const handleCanvasClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget && !isPanning) {
-      onCanvasClick();
-    }
-  };
-
-  // Enhanced node move handler with drag state tracking
-  const handleNodeMove = useCallback((nodeId: string, position: Position) => {
-    onNodeMove(nodeId, position);
-  }, [onNodeMove]);
-
-  // Track node drag state to prevent canvas interactions
-  const handleNodeDragStart = useCallback(() => {
-    setIsNodeBeingDragged(true);
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setViewport(prev => ({
+      ...prev,
+      zoom: Math.max(0.3, Math.min(2, prev.zoom * delta))
+    }));
   }, []);
-
-  const handleNodeDragEnd = useCallback(() => {
-    setIsNodeBeingDragged(false);
-  }, []);
-
-  const handleViewportChange = (pan: Position) => {
-    onViewportChange({
-      ...viewport,
-      pan
-    });
-  };
-
-  // Calculate canvas bounds
-  const canvasBounds = {
-    left: -viewport.pan.x / viewport.zoom,
-    top: -viewport.pan.y / viewport.zoom,
-    right: (-viewport.pan.x + canvasSize.width) / viewport.zoom,
-    bottom: (-viewport.pan.y + canvasSize.height) / viewport.zoom
-  };
-
-  // Filter visible nodes for performance
-  const visibleNodes = nodes.filter(node => {
-    const nodeRight = node.position.x + node.size.width;
-    const nodeBottom = node.position.y + node.size.height;
-    
-    return !(
-      node.position.x > canvasBounds.right ||
-      nodeRight < canvasBounds.left ||
-      node.position.y > canvasBounds.bottom ||
-      nodeBottom < canvasBounds.top
-    );
-  });
 
   return (
     <div 
       ref={canvasRef}
-      className={cn(
-        "flex-1 relative overflow-hidden bg-canvas-background canvas-grid select-none",
-        isPanning ? "cursor-grabbing" : "cursor-grab",
-        isNodeBeingDragged && "cursor-default"
-      )}
-      onWheel={handleWheel}
+      className="w-full h-full bg-background overflow-hidden cursor-grab active:cursor-grabbing relative"
       onMouseDown={handleMouseDown}
-      onClick={handleCanvasClick}
-      style={{ touchAction: 'none' }}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onWheel={handleWheel}
     >
-      {/* Main canvas content */}
-      <motion.div
-        className="absolute inset-0 origin-top-left"
+      <div
+        className="absolute inset-0"
         style={{
-          scale: viewport.zoom,
-          x: viewport.pan.x,
-          y: viewport.pan.y,
+          transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+          transformOrigin: '0 0',
+          transition: isDragging ? 'none' : 'transform 0.1s ease-out'
         }}
       >
-        {/* SVG for connections */}
-        <svg 
-          className="absolute inset-0 pointer-events-none"
-          style={{ 
-            width: canvasSize.width / viewport.zoom,
-            height: canvasSize.height / viewport.zoom
-          }}
-        >
-          {connections.map((connection) => (
-            <ConnectionLine
-              key={connection.id}
-              connection={connection}
-              nodes={nodes}
-              isActive={
-                selectedNodes.includes(connection.from) ||
-                selectedNodes.includes(connection.to)
-              }
-              opacity={searchQuery ? 0.3 : 1}
-            />
-          ))}
+        {/* Background grid */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none">
+          <defs>
+            <pattern
+              id="grid"
+              width="50"
+              height="50"
+              patternUnits="userSpaceOnUse"
+            >
+              <path
+                d="M 50 0 L 0 0 0 50"
+                fill="none"
+                stroke="hsl(var(--muted))"
+                strokeWidth="1"
+                opacity="0.2"
+              />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid)" />
+        </svg>
+
+        {/* Connection lines */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none">
+          {data.edges.map((edge) => {
+            const sourceNode = data.nodes.find(n => n.id === edge.source);
+            const targetNode = data.nodes.find(n => n.id === edge.target);
+            
+            if (!sourceNode || !targetNode) return null;
+            
+            const isHighlighted = selectedNodeId === edge.source || selectedNodeId === edge.target;
+            
+            return (
+              <ConnectionLine
+                key={edge.id}
+                sourceX={sourceNode.position.x + 160} // Center of node (320px width / 2)
+                sourceY={sourceNode.position.y + 80}  // Center of node height
+                targetX={targetNode.position.x + 160}
+                targetY={targetNode.position.y + 80}
+                isHighlighted={isHighlighted}
+              />
+            );
+          })}
         </svg>
 
         {/* Nodes */}
-        {visibleNodes.map((node) => (
-          <ConversationNode
+        {data.nodes.map((node) => (
+          <div
             key={node.id}
-            node={node}
-            isSelected={selectedNodes.includes(node.id)}
-            onSelect={onNodeSelect}
-            onMove={handleNodeMove}
-            onDoubleClick={onNodeEdit}
-            zoom={viewport.zoom}
-            searchQuery={searchQuery}
-          />
-        ))}
-      </motion.div>
-
-      {/* Mini Map */}
-      <MiniMap
-        nodes={nodes}
-        viewport={viewport}
-        onViewportChange={handleViewportChange}
-        canvasSize={canvasSize}
-      />
-
-      {/* Canvas info overlay */}
-      <div className="absolute top-4 left-4 bg-background/80 backdrop-blur-sm border border-border rounded-lg p-3 text-sm">
-        <div className="text-muted-foreground">
-          Zoom: {Math.round(viewport.zoom * 100)}%
-        </div>
-        <div className="text-muted-foreground">
-          Nodes: {visibleNodes.length} / {nodes.length}
-        </div>
-        {selectedNodes.length > 0 && (
-          <div className="text-primary">
-            Selected: {selectedNodes.length}
+            className="absolute pointer-events-auto"
+            style={{
+              left: node.position.x,
+              top: node.position.y,
+              zIndex: selectedNodeId === node.id ? 10 : 1
+            }}
+          >
+            <ConversationNode
+              node={node}
+              isSelected={selectedNodeId === node.id}
+              onSelect={onNodeSelect}
+            />
           </div>
-        )}
+        ))}
+      </div>
+
+      {/* Zoom controls */}
+      <div className="absolute bottom-4 right-4 flex flex-col gap-2 bg-background border rounded-md p-2 shadow-md">
+        <button
+          onClick={() => setViewport(prev => ({ ...prev, zoom: Math.min(2, prev.zoom * 1.2) }))}
+          className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90"
+        >
+          +
+        </button>
+        <span className="text-xs text-center px-2">{Math.round(viewport.zoom * 100)}%</span>
+        <button
+          onClick={() => setViewport(prev => ({ ...prev, zoom: Math.max(0.3, prev.zoom * 0.8) }))}
+          className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90"
+        >
+          -
+        </button>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { UploadFile, ProcessingStatus, DetectedFormat } from '@/types/conversation';
-import { detectConversationFormat, validateFileType } from '@/lib/format-detection';
+import { detectConversationFormat, validateFileType, parseConversation } from '@/lib/format-detection';
 import { useToast } from '@/hooks/use-toast';
 
 export const useFileUpload = () => {
@@ -211,6 +211,10 @@ export const useFileUpload = () => {
     return detectConversationFormat(content);
   }, []);
 
+  const parseConversationContent = useCallback((content: string, format: DetectedFormat) => {
+    return parseConversation(content, format);
+  }, []);
+
   return {
     files,
     processingStatus,
@@ -218,6 +222,7 @@ export const useFileUpload = () => {
     removeFile,
     clearFiles,
     processFiles,
-    analyzeTextContent
+    analyzeTextContent,
+    parseConversationContent
   };
 };

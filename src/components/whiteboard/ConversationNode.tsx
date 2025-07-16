@@ -1,203 +1,99 @@
-import { useState, useRef } from 'react';
-import { motion, PanInfo } from 'framer-motion';
-import { MessageSquare, Code, Target, Circle, MoreHorizontal } from 'lucide-react';
-import { ConversationNode as NodeType } from '@/types/whiteboard';
-import { cn } from '@/lib/utils';
+import { useState } from 'react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { User, Bot, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { WhiteboardNode } from '@/types/whiteboard';
 
 interface ConversationNodeProps {
-  node: NodeType;
-  isSelected: boolean;
-  onSelect: (nodeId: string, multi: boolean) => void;
-  onMove: (nodeId: string, newPosition: { x: number; y: number }) => void;
-  onDoubleClick: (nodeId: string) => void;
-  zoom: number;
-  searchQuery: string;
+  node: WhiteboardNode;
+  isSelected?: boolean;
+  onSelect?: (nodeId: string) => void;
 }
 
-export const ConversationNode = ({
-  node,
-  isSelected,
-  onSelect,
-  onMove,
-  onDoubleClick,
-  zoom,
-  searchQuery
-}: ConversationNodeProps) => {
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStartPosition, setDragStartPosition] = useState<{ x: number; y: number } | null>(null);
-  const nodeRef = useRef<HTMLDivElement>(null);
+export const ConversationNode = ({ node, isSelected, onSelect }: ConversationNodeProps) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const { sender, content, timestamp, order, preview } = node.data;
 
-  const getNodeIcon = () => {
-    switch (node.type) {
-      case 'topic':
-        return Circle;
-      case 'message':
-        return MessageSquare;
-      case 'code':
-        return Code;
-      case 'action':
-        return Target;
-      default:
-        return Circle;
-    }
+  const handleClick = () => {
+    onSelect?.(node.id);
   };
 
-  const getNodeClassName = () => {
-    const baseClasses = "absolute transition-all duration-200 rounded-lg border-2 border-transparent overflow-hidden";
-    const cursorClass = isDragging ? "cursor-grabbing" : "cursor-grab";
-    
-    let typeClasses = "";
-    switch (node.type) {
-      case 'topic':
-        typeClasses = "node-topic";
-        break;
-      case 'message':
-        typeClasses = node.sender === 'ai' ? "node-ai" : "node-user";
-        break;
-      case 'code':
-        typeClasses = "node-code";
-        break;
-      case 'action':
-        typeClasses = "node-action";
-        break;
-    }
-
-    const shapeClasses = node.type === 'topic' ? "rounded-full" : 
-                        node.type === 'action' ? "transform rotate-45" : 
-                        "rounded-lg";
-
-    return cn(
-      baseClasses,
-      cursorClass,
-      typeClasses,
-      shapeClasses,
-      isSelected && "ring-4 ring-primary ring-opacity-50",
-      isDragging && "z-50 shadow-2xl scale-105"
-    );
-  };
-
-  const handleDragStart = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    event.stopPropagation();
-    setIsDragging(true);
-    setDragStartPosition({ x: node.position.x, y: node.position.y });
-  };
-
-  const handleDrag = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    event.stopPropagation();
-    if (!isDragging || !dragStartPosition) return;
-    
-    // Use delta instead of offset for precise 1:1 movement
-    const newPosition = {
-      x: dragStartPosition.x + info.offset.x / zoom,
-      y: dragStartPosition.y + info.offset.y / zoom
-    };
-    
-    onMove(node.id, newPosition);
-  };
-
-  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    event.stopPropagation();
-    setIsDragging(false);
-    setDragStartPosition(null);
-  };
-
-  const handleClick = (e: React.MouseEvent) => {
+  const handleToggleExpand = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onSelect(node.id, e.ctrlKey || e.metaKey);
+    setIsExpanded(!isExpanded);
   };
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onDoubleClick(node.id);
+  const getSenderIcon = () => {
+    return sender === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />;
   };
 
-  const highlightText = (text: string, query: string) => {
-    if (!query) return text;
-    
-    const regex = new RegExp(`(${query})`, 'gi');
-    const parts = text.split(regex);
-    
-    return parts.map((part, index) => 
-      regex.test(part) ? (
-        <span key={index} className="search-highlight">{part}</span>
-      ) : (
-        part
-      )
-    );
+  const getSenderColor = () => {
+    return sender === 'user' 
+      ? 'bg-blue-50 border-blue-200 hover:bg-blue-100' 
+      : 'bg-green-50 border-green-200 hover:bg-green-100';
   };
 
-  const Icon = getNodeIcon();
-
-  // Special handling for diamond shape (action nodes)
-  const contentClasses = node.type === 'action' ? "transform -rotate-45" : "";
+  const displayContent = isExpanded ? content : preview;
+  const needsExpansion = content.length > preview.length;
 
   return (
-    <motion.div
-      ref={nodeRef}
-      className={getNodeClassName()}
-      style={{
-        left: node.position.x,
-        top: node.position.y,
-        width: node.size.width,
-        height: node.size.height,
-      }}
-      drag
-      dragMomentum={false}
-      dragElastic={0}
-      dragTransition={{ 
-        power: 0,
-        timeConstant: 0
-      }}
-      onDragStart={handleDragStart}
-      onDrag={handleDrag}
-      onDragEnd={handleDragEnd}
+    <Card 
+      className={`
+        w-80 cursor-pointer transition-all duration-200 hover:shadow-md
+        ${getSenderColor()}
+        ${isSelected ? 'ring-2 ring-primary' : ''}
+      `}
       onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
-      whileHover={!isDragging ? { scale: 1.05 } : {}}
-      whileTap={!isDragging ? { scale: 0.95 } : {}}
-      animate={{
-        scale: isDragging ? 1.05 : 1,
-        zIndex: isDragging ? 50 : 1,
-        boxShadow: isDragging ? "0 20px 40px rgba(0,0,0,0.15)" : "0 4px 8px rgba(0,0,0,0.1)"
-      }}
     >
-      <div className={cn("p-3 h-full flex flex-col", contentClasses)}>
-        {/* Header */}
-        <div className="flex items-center justify-between mb-2">
-          <Icon className="h-4 w-4 flex-shrink-0" />
-          <div className="text-xs opacity-75">
-            {new Date(node.timestamp).toLocaleTimeString()}
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {getSenderIcon()}
+            <Badge variant={sender === 'user' ? 'default' : 'secondary'}>
+              {sender === 'user' ? 'User' : 'Assistant'}
+            </Badge>
+            <span className="text-xs text-muted-foreground">#{order + 1}</span>
           </div>
+          
+          {timestamp && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              {new Date(timestamp).toLocaleTimeString()}
+            </div>
+          )}
         </div>
-
-        {/* Title */}
-        <div className="font-semibold text-sm mb-1 line-clamp-2">
-          {highlightText(node.title, searchQuery)}
+      </CardHeader>
+      
+      <CardContent className="pt-0">
+        <div className="text-sm leading-relaxed">
+          {displayContent}
+          {displayContent.endsWith('...') && !isExpanded && (
+            <span className="text-muted-foreground"> (truncated)</span>
+          )}
         </div>
-
-        {/* Content */}
-        <div className={cn(
-          "text-xs opacity-90 flex-1 overflow-hidden",
-          node.type === 'code' ? "font-mono whitespace-pre-wrap" : "line-clamp-3"
-        )}>
-          {highlightText(node.content, searchQuery)}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-current opacity-30">
-          <div className="text-xs">
-            {node.sender === 'ai' ? 'AI' : 'User'}
-          </div>
-          <div className="text-xs">
-            {node.connections.length} connected
-          </div>
-        </div>
-      </div>
-
-      {/* Selection indicator */}
-      {isSelected && (
-        <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-white" />
-      )}
-    </motion.div>
+        
+        {needsExpansion && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2 h-6 px-2 text-xs"
+            onClick={handleToggleExpand}
+          >
+            {isExpanded ? (
+              <>
+                <ChevronUp className="h-3 w-3 mr-1" />
+                Show Less
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-3 w-3 mr-1" />
+                Show More
+              </>
+            )}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 };

@@ -1,67 +1,46 @@
-export interface Position {
-  x: number;
-  y: number;
-}
-
-export interface Size {
-  width: number;
-  height: number;
-}
-
-export interface Bounds {
-  left: number;
-  top: number;
-  right: number;
-  bottom: number;
-}
-
-export type NodeType = 'topic' | 'message' | 'code' | 'action';
-
-export interface ConversationNode {
+export interface WhiteboardNode {
   id: string;
-  type: NodeType;
-  title: string;
-  content: string;
-  position: Position;
-  size: Size;
-  connections: string[];
-  timestamp: string;
-  selected?: boolean;
-  sender?: 'user' | 'ai';
+  type: 'message';
+  position: { x: number; y: number };
+  data: {
+    sender: 'user' | 'assistant' | 'system';
+    content: string;
+    timestamp?: string;
+    order: number;
+    preview: string; // First 100 characters
+  };
 }
 
-export interface Connection {
+export interface WhiteboardEdge {
   id: string;
-  from: string;
-  to: string;
-  points: Position[];
+  source: string;
+  target: string;
+  type: 'conversation';
 }
 
-export interface Conversation {
-  id: string;
-  title: string;
-  nodes: ConversationNode[];
-  connections: Connection[];
+export interface WhiteboardData {
+  nodes: WhiteboardNode[];
+  edges: WhiteboardEdge[];
   metadata: {
+    conversationId: string;
+    title: string;
     totalNodes: number;
-    conversationDuration: string;
-    mainTopics: string[];
+    lastUpdated: string;
   };
 }
 
 export interface ViewportState {
+  x: number;
+  y: number;
   zoom: number;
-  pan: Position;
-  bounds: Bounds;
 }
 
-export interface CanvasState {
-  viewport: ViewportState;
-  selectedNodes: string[];
-  draggedNode: string | null;
+export interface WhiteboardFilters {
+  showUserMessages: boolean;
+  showAssistantMessages: boolean;
   searchQuery: string;
-  filters: {
-    nodeTypes: NodeType[];
-    timeRange: [Date, Date] | null;
+  selectedTimeRange?: {
+    start: Date;
+    end: Date;
   };
 }
