@@ -14,7 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      conversations: {
+        Row: {
+          created_at: string | null
+          file_type: string | null
+          id: string
+          main_topics: string[] | null
+          original_filename: string | null
+          processed_data: Json | null
+          processing_status: string | null
+          raw_content: string | null
+          title: string
+          total_messages: number | null
+          upload_date: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          file_type?: string | null
+          id?: string
+          main_topics?: string[] | null
+          original_filename?: string | null
+          processed_data?: Json | null
+          processing_status?: string | null
+          raw_content?: string | null
+          title: string
+          total_messages?: number | null
+          upload_date?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          file_type?: string | null
+          id?: string
+          main_topics?: string[] | null
+          original_filename?: string | null
+          processed_data?: Json | null
+          processing_status?: string | null
+          raw_content?: string | null
+          title?: string
+          total_messages?: number | null
+          upload_date?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          conversations_count: number | null
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+        }
+        Insert: {
+          conversations_count?: number | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+        }
+        Update: {
+          conversations_count?: number | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
